@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
+import '../platform/webgl.dart';
 import '../services/clearance.dart';
 import '../services/geo.dart';
 import '../services/land_service.dart';
@@ -46,7 +47,21 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _zoom = widget.zoom;
+    _noGl = !webglAvailable();
     _startGps();
+    _fallbackStatus();
+  }
+
+  bool _noGl = false;
+
+  /// Status for the map center even if the map itself can't draw.
+  Future<void> _fallbackStatus() async {
+    await Future<void>.delayed(const Duration(seconds: 6));
+    if (!mounted || _status != null) return;
+    try {
+      final st = await ClearanceService.evaluate(widget.center);
+      if (mounted && _status == null) setState(() => _status = st);
+    } catch (_) {}
   }
 
   Future<void> _startGps() async {
@@ -280,6 +295,25 @@ class _MapScreenState extends State<MapScreen> {
             onMapClick: (pt, latLng) => _onTap(toLL(latLng)),
           ),
         ),
+        if (_noGl)
+          Positioned.fill(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Glass(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: const [
+                    Icon(Icons.map_outlined, size: 40, color: C.text2),
+                    SizedBox(height: 10),
+                    Text('This browser has WebGL turned off, so the map can\'t draw.',
+                        textAlign: TextAlign.center, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600)),
+                    SizedBox(height: 6),
+                    Text('Open the link in Safari or Chrome, or turn on hardware acceleration. Status, search and outings still work.',
+                        textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: C.text2)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
         // Top controls
         Positioned(
           top: pad.top + 10,

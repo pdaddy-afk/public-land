@@ -24,12 +24,14 @@ class PlacesService {
     });
     final j = jsonDecode(await Net.get(uri)) as Map<String, dynamic>;
     final out = <Place>[];
+    final seen = <String>{};
     for (final f in (j['features'] as List? ?? [])) {
       final m = f as Map<String, dynamic>;
       final pr = (m['properties'] as Map).cast<String, dynamic>();
       final c = (m['geometry'] as Map)['coordinates'] as List;
       if (pr['countrycode'] != null && pr['countrycode'] != 'US') continue;
       final detail = [pr['city'], pr['county'], pr['state']].whereType<String>().join(', ');
+      if (!seen.add('${pr['name']}|$detail')) continue;
       out.add(Place((pr['name'] as String?) ?? detail, detail, LL((c[1] as num).toDouble(), (c[0] as num).toDouble())));
     }
     return out;

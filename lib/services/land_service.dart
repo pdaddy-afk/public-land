@@ -466,7 +466,13 @@ class LandService {
         best[key] = NearbyUnit(unit, mgr, st.status, d, near, st.checkLocalOrders);
       }
     }
-    final list = best.values.toList()..sort((a, b) => a.distanceM.compareTo(b.distanceM));
+    // BLM and National Forest first (where shooting is generally allowed), then the rest.
+    int rank(NearbyUnit u) => (u.manager == 'BLM' || u.manager == 'USFS') ? 0 : 1;
+    final list = best.values.toList()
+      ..sort((a, b) {
+        final r = rank(a) - rank(b);
+        return r != 0 ? r : a.distanceM.compareTo(b.distanceM);
+      });
     return list.take(8).toList();
   }
 
