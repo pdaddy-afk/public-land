@@ -52,7 +52,7 @@ Everywhere else the app shows **"Check local orders"**: look up the local BLM fi
 
 ## Install the Android app (sideload)
 
-1. On your Android phone open **https://github.com/pdaddy-afk/public-land/releases/tag/latest** and tap **public-land.apk**.
+1. On your Android phone open **https://github.com/pdaddy-afk/public-land/releases/tag/latest** and tap **public-land.apk** (for any phone from the last several years; `public-land-older-32bit-phones.apk` is only for very old 32-bit phones).
 2. When Android asks, allow your browser to **install unknown apps** (Settings → Apps → *your browser* → Install unknown apps → Allow). On older phones: Settings → Security → **Unknown sources**.
 3. Open the download and tap **Install**. Allow location when the app asks.
 

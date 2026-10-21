@@ -45,6 +45,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Try to enable Pages (works only if the token is allowed; otherwise set Settings > Pages > Source = GitHub Actions)
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+        with:
+          enablement: true
       - id: deployment
         uses: actions/deploy-pages@v4
 
@@ -67,22 +72,25 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Build release APK (debug-signed for sideloading)
+      - name: Build release APKs (debug-signed for sideloading, one per CPU type)
         run: >
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
           --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-      - run: cp build/app/outputs/flutter-apk/app-release.apk public-land.apk
+      - run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk public-land.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk public-land-older-32bit-phones.apk
+          ls -la *.apk
       - uses: actions/upload-artifact@v4
         with:
           name: public-land-apk
-          path: public-land.apk
+          path: '*.apk'
       - name: Publish GitHub Release "latest"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest public-land.apk \
+          gh release create latest public-land.apk public-land-older-32bit-phones.apk \
             --title "Public Land (latest build)" \
-            --notes "Built from ${GITHUB_SHA::7}. Download public-land.apk on your Android phone and allow installs from your browser (Unknown sources). Web app: https://pdaddy-afk.github.io/public-land/" \
+            --notes "Built from ${GITHUB_SHA::7}. Most phones (2017+): download public-land.apk. Very old 32-bit phones: public-land-older-32bit-phones.apk. Download on your Android phone and allow installs from your browser (Unknown sources). Web app: https://pdaddy-afk.github.io/public-land/" \
             --target "$GITHUB_SHA" --latest
