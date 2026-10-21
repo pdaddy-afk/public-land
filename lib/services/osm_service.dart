@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show compute;
 import 'dart:convert';
 
 import 'geo.dart';
@@ -202,8 +203,8 @@ class OsmService {
     Object? lastErr;
     for (final m in mirrors) {
       try {
-        final body = await Net.post(Uri.parse(m), {'data': q}, timeout: const Duration(seconds: 35));
-        final h = _parse(box, body);
+        final body = await Net.post(Uri.parse(m), {'data': q}, timeout: const Duration(seconds: 15));
+        final h = await compute(OsmService._parseRec, (box, body));
         if (_cache.length > 8) _cache.remove(_cache.keys.first);
         _cache[key] = h;
         return last = h;
@@ -214,7 +215,9 @@ class OsmService {
     throw Exception('OpenStreetMap (Overpass) is busy: $lastErr');
   }
 
-  Hazards _parse(BBox box, String body) {
+  static Hazards _parseRec((BBox, String) a) => _parse(a.\$1, a.\$2);
+
+  static Hazards _parse(BBox box, String body) {
     final j = jsonDecode(body) as Map<String, dynamic>;
     final ways = <OsmWay>[];
     final pois = <Poi>[];
@@ -274,7 +277,7 @@ class OsmService {
   }
 
   /// Greedy endpoint chaining so the elevation profile follows the trail.
-  List<LL> _chain(List<OsmWay> ways) {
+  static List<LL> _chain(List<OsmWay> ways) {
     final rest = ways.map((w) => List<LL>.from(w.geom)).toList();
     rest.sort((a, b) => Geo.lineLength(b).compareTo(Geo.lineLength(a)));
     final line = rest.removeAt(0);

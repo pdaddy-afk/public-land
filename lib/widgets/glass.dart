@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -118,24 +119,6 @@ class Glass extends StatelessWidget {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 8))],
       ),
       child: Stack(children: [
-        // rim highlight along the top edge
-        Positioned(
-          left: 12,
-          right: 12,
-          top: 0,
-          child: IgnorePointer(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [
-                  Colors.white.withValues(alpha: 0),
-                  Colors.white.withValues(alpha: 0.35),
-                  Colors.white.withValues(alpha: 0),
-                ]),
-              ),
-            ),
-          ),
-        ),
         child,
       ]),
     );
@@ -143,6 +126,16 @@ class Glass extends StatelessWidget {
       inner = Material(
         color: Colors.transparent,
         child: InkWell(borderRadius: r, onTap: onTap, child: inner),
+      );
+    }
+    // Real-time blur over the native map view is very slow on Android; use a solid frosted tint there.
+    if (!kIsWeb) {
+      return ClipRRect(
+        borderRadius: r,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: C.bg.withValues(alpha: 0.80), borderRadius: r),
+          child: inner,
+        ),
       );
     }
     return ClipRRect(
