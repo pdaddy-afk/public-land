@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -7,10 +9,33 @@ import 'services/models.dart';
 import 'services/store.dart';
 import 'widgets/glass.dart';
 
+/// Last startup/runtime error, shown on screen instead of a blank screen.
+final ValueNotifier<String?> bootError = ValueNotifier(null);
+
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Store.instance.init();
-  runApp(const PublicLandApp());
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    FlutterError.onError = (d) {
+      FlutterError.presentError(d);
+      bootError.value ??= d.exceptionAsString();
+    };
+    ErrorWidget.builder = (d) => Material(
+          color: const Color(0xFF1B1F24),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Something went wrong:\n${d.exceptionAsString()}',
+                style: const TextStyle(color: Colors.white, fontSize: 16)),
+          ),
+        );
+    try {
+      await Store.instance.init().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      bootError.value = 'Storage failed to load: $e';
+    }
+    runApp(const PublicLandApp());
+  }, (e, st) {
+    bootError.value ??= '$e';
+  });
 }
 
 class PublicLandApp extends StatelessWidget {
@@ -22,7 +47,36 @@ class PublicLandApp extends StatelessWidget {
       title: 'Public Land',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
-      home: const LinkGate(),
+      home: ValueListenableBuilder<String?>(
+        valueListenable: bootError,
+        builder: (context, err, child) => Stack(children: [
+          child!,
+          if (err != null)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 100,
+              child: Material(
+                color: const Color(0xEE7A1E2C),
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(children: [
+                    Expanded(
+                      child: SelectableText('Error: $err',
+                          maxLines: 6, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => bootError.value = null,
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+        ]),
+        child: const LinkGate(),
+      ),
     );
   }
 }
