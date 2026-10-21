@@ -1,0 +1,4 @@
+-keep class io.flutter.plugins.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class org.maplibre.** { *; }
+-dontwarn org.maplibre.**
