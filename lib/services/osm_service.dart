@@ -215,7 +215,7 @@ class OsmService {
     throw Exception('OpenStreetMap (Overpass) is busy: $lastErr');
   }
 
-  static Hazards _parseRec((BBox, String) a) => _parse(a.\$1, a.\$2);
+  static Hazards _parseRec((BBox, String) a) => _parse(a.$1, a.$2);
 
   static Hazards _parse(BBox box, String body) {
     final j = jsonDecode(body) as Map<String, dynamic>;
