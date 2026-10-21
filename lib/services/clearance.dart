@@ -118,12 +118,15 @@ class LocationService {
   static final LocationService instance = LocationService._();
   LL? last;
 
+  /// True once the OS granted location; the map's blue dot is only enabled then.
+  bool granted = false;
+
   Future<bool> ensurePermission() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) return false;
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      return perm == LocationPermission.always || perm == LocationPermission.whileInUse;
+      return granted = perm == LocationPermission.always || perm == LocationPermission.whileInUse;
     } catch (_) {
       return false;
     }

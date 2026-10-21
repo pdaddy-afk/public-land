@@ -69,6 +69,7 @@ class _MapScreenState extends State<MapScreen> {
     if (!mounted) return;
     setState(() => _me = me);
     if (await LocationService.instance.ensurePermission()) {
+      if (mounted) setState(() {});
       _gps = LocationService.instance.watch().listen((p) {
         _me = p;
         _refreshStatus();
@@ -287,7 +288,7 @@ class _MapScreenState extends State<MapScreen> {
             onMapCreated: (c) => _c = c,
             onStyleLoadedCallback: _onStyle,
             trackCameraPosition: true,
-            myLocationEnabled: true,
+            myLocationEnabled: LocationService.instance.granted,
             myLocationTrackingMode: MyLocationTrackingMode.none,
             compassEnabled: false,
             attributionButtonPosition: AttributionButtonPosition.bottomLeft,

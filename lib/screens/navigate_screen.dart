@@ -44,6 +44,7 @@ class _NavigateScreenState extends State<NavigateScreen> {
       if (mounted) toast(context, 'Allow location to follow your track.');
       return;
     }
+    if (mounted) setState(() {});
     await Store.instance.upsertTrip(_trip);
     _sub = LocationService.instance.watch().listen(_onPos);
     final me = await LocationService.instance.current();
@@ -97,7 +98,7 @@ class _NavigateScreenState extends State<NavigateScreen> {
             initialCameraPosition: CameraPosition(target: ll(widget.dest), zoom: 14),
             onMapCreated: (c) => _c = c,
             onStyleLoadedCallback: _onStyle,
-            myLocationEnabled: true,
+            myLocationEnabled: LocationService.instance.granted,
             myLocationTrackingMode: MyLocationTrackingMode.none,
             onCameraTrackingDismissed: () => setState(() => _follow = false),
             compassEnabled: true,

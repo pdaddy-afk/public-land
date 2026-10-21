@@ -49,6 +49,7 @@ class _OnsiteScreenState extends State<OnsiteScreen> {
       if (mounted) setState(() => _wx = w);
     }).catchError((_) {});
     if (await LocationService.instance.ensurePermission()) {
+      if (mounted) setState(() {});
       _sub = LocationService.instance.watch().listen((p) {
         _me = p;
         if (widget.trip.track.isEmpty || Geo.distance(widget.trip.track.last, p) > 6) widget.trip.track.add(p);
@@ -129,7 +130,7 @@ class _OnsiteScreenState extends State<OnsiteScreen> {
             initialCameraPosition: CameraPosition(target: ll(me), zoom: 15),
             onMapCreated: (c) => _c = c,
             onStyleLoadedCallback: _onStyle,
-            myLocationEnabled: true,
+            myLocationEnabled: LocationService.instance.granted,
             myLocationTrackingMode: MyLocationTrackingMode.none,
           ),
         ),
