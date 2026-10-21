@@ -1,0 +1,88 @@
+name: Build APK + PWA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web / PWA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test
+      - name: Build web (PWA)
+        run: >
+          flutter build web --release --base-href /public-land/
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+      - run: touch build/web/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Reuse the same debug signing key between runs (kept in the private Actions cache, not in the repo)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build release APK (debug-signed for sideloading)
+        run: >
+          flutter build apk --release
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+      - run: cp build/app/outputs/flutter-apk/app-release.apk public-land.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-land-apk
+          path: public-land.apk
+      - name: Publish GitHub Release "latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest public-land.apk \
+            --title "Public Land (latest build)" \
+            --notes "Built from ${GITHUB_SHA::7}. Download public-land.apk on your Android phone and allow installs from your browser (Unknown sources). Web app: https://pdaddy-afk.github.io/public-land/" \
+            --target "$GITHUB_SHA" --latest
