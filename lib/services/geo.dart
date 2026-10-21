@@ -37,6 +37,10 @@ class BBox {
     return BBox(south - h, west - w, north + h, east + w);
   }
 
+  /// Snap outward to a [step]-degree grid so nearby pans reuse the same fetch.
+  BBox snap(double step) => BBox((south / step).floorToDouble() * step, (west / step).floorToDouble() * step,
+      (north / step).ceilToDouble() * step, (east / step).ceilToDouble() * step);
+
   String get overpass =>
       '${south.toStringAsFixed(5)},${west.toStringAsFixed(5)},${north.toStringAsFixed(5)},${east.toStringAsFixed(5)}';
   String get esriEnvelope =>

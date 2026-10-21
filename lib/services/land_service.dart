@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show compute;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
@@ -193,6 +194,7 @@ class LandService {
   final Map<String, List<LandParcel>> _cache = {};
   List<LandParcel> lastParcels = [];
   BBox? lastBox;
+  double? _lastZoom;
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
@@ -245,8 +247,14 @@ class LandService {
   List<Map<String, dynamic>> get unitRules => _unitRules;
 
   /// Fetch PAD-US fee-manager polygons for a bounding box.
+  static Object? _decode(String s) => jsonDecode(s);
+
   Future<List<LandParcel>> fetch(BBox box, double zoom) async {
     await ensureLoaded();
+    final zb = zoom < 11 ? 10.0 : 13.0; // two detail levels only, so the cache hits
+    zoom = zb;
+    box = box.snap(zb < 11 ? 0.25 : 0.08);
+    if (lastBox != null && _lastZoom == zb && lastBox!.containsBox(box)) return lastParcels;
     final tol = (Geo.metersPerPixel(zoom, box.center.lat) * 1.2) / 111320.0;
     final key = '${box.esriEnvelope}|${zoom.round()}';
     final hit = _cache[key];
@@ -266,7 +274,7 @@ class LandService {
       'f': 'geojson',
     });
     final res = await Net.get(uri, timeout: const Duration(seconds: 30));
-    final j = jsonDecode(res) as Map<String, dynamic>;
+    final j = (await compute(_decode, res)) as Map<String, dynamic>;
     final out = <LandParcel>[];
     for (final f in (j['features'] as List? ?? [])) {
       final m = f as Map<String, dynamic>;
@@ -284,6 +292,7 @@ class LandService {
     _cache[key] = out;
     lastParcels = out;
     lastBox = box;
+    _lastZoom = zb;
     return out;
   }
 

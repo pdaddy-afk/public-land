@@ -134,23 +134,28 @@ class _MapScreenState extends State<MapScreen> {
       setState(() => _banner = 'Zoom in to see public land and shooting status');
       return;
     }
+    final wantOsm = zoom >= 12.2 && box.widthMeters < 16000;
     setState(() {
       _banner = null;
       _loadingLand = true;
+      _loadingOsm = wantOsm;
     });
-    try {
-      await LandService.instance.fetch(box.expand(1.4), zoom);
-      if (seq != _reqSeq) return;
-      await _pushLand();
-    } catch (e) {
-      if (mounted) setState(() => _banner = 'Land data unavailable right now (PAD-US). Showing what is cached.');
-    } finally {
-      if (mounted) setState(() => _loadingLand = false);
-    }
-    if (zoom >= 12.2 && box.widthMeters < 16000) {
-      setState(() => _loadingOsm = true);
+    // Land and roads/trails load at the same time; each draws as soon as it lands.
+    final land = () async {
       try {
-        await OsmService.instance.fetch(box.expand(1.3));
+        await LandService.instance.fetch(box.expand(1.4), zoom);
+        if (seq != _reqSeq) return;
+        await _pushLand();
+      } catch (e) {
+        if (mounted) setState(() => _banner = 'Land data unavailable right now (PAD-US). Showing what is cached.');
+      } finally {
+        if (mounted) setState(() => _loadingLand = false);
+      }
+    }();
+    final osm = () async {
+      if (!wantOsm) return;
+      try {
+        await OsmService.instance.fetch(box.expand(1.3).snap(0.02));
         if (seq != _reqSeq) return;
         await _pushOsm();
       } catch (e) {
@@ -158,10 +163,12 @@ class _MapScreenState extends State<MapScreen> {
       } finally {
         if (mounted) setState(() => _loadingOsm = false);
       }
-    } else if (zoom < 12.2) {
-      if (mounted && _mode != MapMode.land) {
-        setState(() => _banner = 'Zoom in closer to see trails and 150-yard buffers');
-      }
+    }();
+    await land;
+    _refreshStatus();
+    await osm;
+    if (!wantOsm && zoom < 12.2 && mounted && _mode != MapMode.land) {
+      setState(() => _banner = 'Zoom in closer to see trails and 150-yard buffers');
     }
     _refreshStatus();
   }

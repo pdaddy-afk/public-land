@@ -30,7 +30,7 @@ class _SearchSheetState extends State<SearchSheet> {
 
   void _changed(String q) {
     _deb?.cancel();
-    _deb = Timer(const Duration(milliseconds: 650), () => _run(q));
+    _deb = Timer(const Duration(milliseconds: 350), () => _run(q));
   }
 
   Future<void> _run(String q) async {

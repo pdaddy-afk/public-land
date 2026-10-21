@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart' show compute;
 import 'dart:convert';
 
@@ -181,9 +182,8 @@ class OsmService {
   /// Public Overpass instances, tried in order (all free, fair-use).
   static const mirrors = [
     'https://overpass-api.de/api/interpreter',
-    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-    'https://overpass.private.coffee/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   ];
 
   Hazards? last;
@@ -200,19 +200,29 @@ class OsmService {
         'nwr["tourism"~"^(camp_site|picnic_site|caravan_site|alpine_hut|wilderness_hut)\$"]($b);'
         'nwr["amenity"~"^(shelter|toilets|ranger_station)\$"]($b);'
         'nwr["leisure"~"^(park|playground|picnic_table)\$"]["name"]($b););out center qt;';
+    // Ask every mirror at once and keep the first good answer.
+    final done = Completer<String>();
+    var failed = 0;
     Object? lastErr;
     for (final m in mirrors) {
-      try {
-        final body = await Net.post(Uri.parse(m), {'data': q}, timeout: const Duration(seconds: 15));
-        final h = await compute(OsmService._parseRec, (box, body));
-        if (_cache.length > 8) _cache.remove(_cache.keys.first);
-        _cache[key] = h;
-        return last = h;
-      } catch (e) {
+      Net.post(Uri.parse(m), {'data': q}, timeout: const Duration(seconds: 25)).then((body) {
+        if (!done.isCompleted && body.trimLeft().startsWith('{')) {
+          done.complete(body);
+        } else if (++failed == mirrors.length && !done.isCompleted) {
+          done.completeError(Exception('OpenStreetMap (Overpass) is busy'));
+        }
+      }, onError: (e) {
         lastErr = e;
-      }
+        if (++failed == mirrors.length && !done.isCompleted) {
+          done.completeError(Exception('OpenStreetMap (Overpass) is busy: $lastErr'));
+        }
+      });
     }
-    throw Exception('OpenStreetMap (Overpass) is busy: $lastErr');
+    final body = await done.future;
+    final h = await compute(OsmService._parseRec, (box, body));
+    if (_cache.length > 8) _cache.remove(_cache.keys.first);
+    _cache[key] = h;
+    return last = h;
   }
 
   static Hazards _parseRec((BBox, String) a) => _parse(a.$1, a.$2);
